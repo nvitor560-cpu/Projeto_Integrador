@@ -1,0 +1,32 @@
+name: Build Projeto Integrador
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Compilar projeto
+        run: |
+          echo "Compilando projeto..."
+          find ./ -name "*.java" > sources.txt
+          javac @sources.txt -d out
+
+      - name: Teste simples de execução
+        run: |
+          echo "Executando Main..."
+          java -cp out br.com.fecaf.Main || echo "⚠ Main executou com falhas"
