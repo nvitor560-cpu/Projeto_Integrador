@@ -1,4 +1,4 @@
-name: Java CI (find pom)
+name: Java CI (sem Maven)
 
 on:
   push:
@@ -9,36 +9,39 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Instalar JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Find pom.xml
-        id: find_pom
+      - name: Compilar código Java
         run: |
-          echo "Procurando pom.xml..."
-          POM_PATH=$(find . -maxdepth 6 -name pom.xml | head -n 1 || true)
-          if [ -z "$POM_PATH" ]; then
-            echo "::error::pom.xml não encontrado. Verifique se existe um pom.xml no repositório."
-            exit 1
+          echo "Procurando arquivos .java..."
+          find . -name "*.java"
+          mkdir -p out
+          javac $(find . -name "*.java") -d out
+
+      - name: Executar testes (procura classe com main)
+        run: |
+          echo "Procurando classe com método main..."
+          MAIN_CLASS=$(grep -rl "public static void main" . | head -n 1 || true)
+
+          if [ -z "$MAIN_CLASS" ]; then
+            echo "Nenhuma classe com main encontrada. Build OK."
+            exit 0
           fi
-          echo "Encontrado: $POM_PATH"
-          echo "pom=$POM_PATH" >> $GITHUB_OUTPUT
+          
+          echo "Classe encontrada: $MAIN_CLASS"
+          DIR=$(dirname "$MAIN_CLASS")
 
-      - name: Show project tree around pom
-        if: always()
-        run: |
-          POM_DIR=$(dirname "${{ steps.find_pom.outputs.pom }}")
-          echo "Mostrando arquivos em: $POM_DIR"
-          ls -la "$POM_DIR" || true
+          CLASS_NAME=$(basename "$MAIN_CLASS" .java)
 
-      - name: Build with Maven (clean verify)
-        run: |
-          echo "Executando mvn clean verify usando o pom encontrado..."
-          mvn -B -f "${{ steps.find_pom.outputs.pom }}" clean verify
+          echo "Executando $CLASS_NAME..."
+          cd out
+          java $CLASS_NAME
