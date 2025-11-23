@@ -1,4 +1,4 @@
-name: Java CI
+name: Java CI (find pom)
 
 on:
   push:
@@ -9,14 +9,36 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4  
-    - name: Set up JDK 17  
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Build with Maven
-      run: mvn -B clean package
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Find pom.xml
+        id: find_pom
+        run: |
+          echo "Procurando pom.xml..."
+          POM_PATH=$(find . -maxdepth 6 -name pom.xml | head -n 1 || true)
+          if [ -z "$POM_PATH" ]; then
+            echo "::error::pom.xml não encontrado. Verifique se existe um pom.xml no repositório."
+            exit 1
+          fi
+          echo "Encontrado: $POM_PATH"
+          echo "pom=$POM_PATH" >> $GITHUB_OUTPUT
+
+      - name: Show project tree around pom
+        if: always()
+        run: |
+          POM_DIR=$(dirname "${{ steps.find_pom.outputs.pom }}")
+          echo "Mostrando arquivos em: $POM_DIR"
+          ls -la "$POM_DIR" || true
+
+      - name: Build with Maven (clean verify)
+        run: |
+          echo "Executando mvn clean verify usando o pom encontrado..."
+          mvn -B -f "${{ steps.find_pom.outputs.pom }}" clean verify
