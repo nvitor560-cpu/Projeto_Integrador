@@ -22,26 +22,32 @@ jobs:
 
       - name: Compilar código Java
         run: |
-          echo "Procurando arquivos .java..."
-          find . -name "*.java"
+          echo "Compilando arquivos..."
           mkdir -p out
           javac $(find . -name "*.java") -d out
 
-      - name: Executar testes (procura classe com main)
+      - name: Executar (somente se existir classe Main)
         run: |
-          echo "Procurando classe com método main..."
-          MAIN_CLASS=$(grep -rl "public static void main" . | head -n 1 || true)
+          echo "Procurando uma classe com método main..."
+          MAIN_FILE=$(grep -rl "public static void main" . | head -n 1 || true)
 
-          if [ -z "$MAIN_CLASS" ]; then
-            echo "Nenhuma classe com main encontrada. Build OK."
+          if [ -z "$MAIN_FILE" ]; then
+            echo "Nenhuma classe com main encontrada. Build finalizado com sucesso."
             exit 0
           fi
-          
-          echo "Classe encontrada: $MAIN_CLASS"
-          DIR=$(dirname "$MAIN_CLASS")
 
-          CLASS_NAME=$(basename "$MAIN_CLASS" .java)
+          echo "Classe encontrada: $MAIN_FILE"
 
-          echo "Executando $CLASS_NAME..."
-          cd out
-          java $CLASS_NAME
+          # Extrai o caminho completo do pacote
+          PACKAGE=$(grep -m 1 "package " "$MAIN_FILE" | sed 's/package \(.*\);/\1/' || true)
+
+          CLASS_NAME=$(basename "$MAIN_FILE" .java)
+
+          if [ -z "$PACKAGE" ]; then
+            echo "Executando classe sem pacote..."
+            java -cp out $CLASS_NAME
+          else
+            FULL_CLASS="$PACKAGE.$CLASS_NAME"
+            echo "Executando classe com pacote: $FULL_CLASS"
+            java -cp out $FULL_CLASS
+          fi
